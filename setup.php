@@ -41,6 +41,19 @@ $PAGE->set_pagelayout('incourse');
 $PAGE->set_title(get_string('setuppagetitle', 'local_forumseries'));
 $PAGE->set_heading($course->fullname);
 
+// Groups, so a teacher can generate one discussion per group in a single
+// pass instead of posting the series once per group by hand. Moodle's own
+// group mode (Separate/Visible groups) on the forum decides who can
+// actually see or reply to each one - this just decides how many copies
+// of each week get created and which group each belongs to.
+$groupmode = groups_get_activity_groupmode($cm);
+$coursegroups = [];
+if ($groupmode != NOGROUPS) {
+    foreach (groups_get_all_groups($course->id) as $group) {
+        $coursegroups[] = ['id' => (int) $group->id, 'name' => format_string($group->name)];
+    }
+}
+
 $jsfile = __DIR__ . '/js/setup.js';
 $js = is_readable($jsfile) ? file_get_contents($jsfile) : '';
 
@@ -57,7 +70,10 @@ $bootstrap = 'window.localForumseries = ' . json_encode([
     'exporturl'  => (new moodle_url('/local/forumseries/export.php'))->out(false),
     'forumurl'   => (new moodle_url('/mod/forum/view.php', ['id' => $cm->id]))->out(false),
     'weekdays'   => $weekdaystrings,
+    'groups'     => $coursegroups,
     'strings'    => [
+        'groupslabel' => get_string('groupslabel', 'local_forumseries'),
+        'groupsallparticipants' => get_string('groupsallparticipants', 'local_forumseries'),
         'weeknumber'  => get_string('weeknumberheader', 'local_forumseries'),
         'title'       => get_string('titleheader', 'local_forumseries'),
         'message'     => get_string('messageheader', 'local_forumseries'),
@@ -93,13 +109,20 @@ $bootstrap = 'window.localForumseries = ' . json_encode([
         'openwithoutlockerror' => get_string('openwithoutlockerror', 'local_forumseries'),
         'emptybodyerror' => get_string('emptybodyerror', 'local_forumseries'),
         'downloaddiscussions' => get_string('downloaddiscussionsbutton', 'local_forumseries'),
+        'localfilewarningdownload' => get_string('localfilewarningdownload', 'local_forumseries'),
+        'localfilewarningupload' => get_string('localfilewarningupload', 'local_forumseries'),
         'classdaylabel' => get_string('classdaylabel', 'local_forumseries'),
         'norestrictions' => get_string('norestrictions', 'local_forumseries'),
+        'discussioncountlabel' => get_string('discussioncountlabel', 'local_forumseries'),
+        'removecontentwarning' => get_string('removecontentwarning', 'local_forumseries'),
     ],
     'help' => [
         'norestrictions' => get_string('help_norestrictions', 'local_forumseries'),
         'downloaddiscussions' => get_string('help_downloaddiscussions', 'local_forumseries'),
         'startdate'      => get_string('help_startdate', 'local_forumseries'),
+        'discussioncount' => get_string('help_discussioncount', 'local_forumseries'),
+        'groups'         => get_string('help_groups', 'local_forumseries'),
+        'messagelimits'  => get_string('help_messagelimits', 'local_forumseries'),
         'classday'       => get_string('help_classday', 'local_forumseries'),
         'gatereplies'    => get_string('help_gatereplies', 'local_forumseries'),
         'lockreplies'    => get_string('help_lockreplies', 'local_forumseries'),
@@ -121,6 +144,8 @@ echo $OUTPUT->heading(get_string('setuppagetitle', 'local_forumseries'));
 if ($forum->type !== 'qanda') {
     echo $OUTPUT->notification(get_string('notqandaforum', 'local_forumseries'), 'warning');
 }
+
+echo $OUTPUT->notification(get_string('richtextlimitsnotice', 'local_forumseries'), 'info');
 
 echo html_writer::tag('div', '', ['id' => 'forumseries-startdate-wrap']);
 echo html_writer::tag('div', '', ['id' => 'forumseries-app']);

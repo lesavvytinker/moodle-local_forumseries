@@ -50,6 +50,18 @@ plugin's only job is to create real discussions and hand each one to
    calls `classes/generator.php` to resolve each week's offsets against
    the chosen start date, create the discussion via Moodle's own
    `forum_add_discussion()`, and hand scheduling off to local_forumlock.
+   If the forum has groups (any group mode other than "No groups"), a
+   **"Generate for"** picker lets you select one or more groups - each
+   selected group gets its own copy of every week (same title, message,
+   and schedule), rather than one shared discussion, so a senior teacher
+   overseeing several groups doesn't have to post the series once per
+   group by hand. "All participants" (the default) keeps the old
+   behaviour: one discussion per week, no group restriction. This only
+   decides how many copies get made and which group each belongs to -
+   whether other groups can actually see a given copy is entirely down to
+   the forum's own Group mode setting (Separate groups vs Visible groups),
+   same as any other Moodle discussion. Group selection isn't saved into
+   the JSON template, since group ids/rosters are specific to a course.
 5. **Download template & generate** does both of the above in one click,
    as a safety net so you always have a backup of what you're about to
    create before committing to it.

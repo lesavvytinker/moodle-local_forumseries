@@ -75,16 +75,26 @@ require_once($GLOBALS['CFG']->dirroot . '/mod/forum/lib.php');
 class generator {
 
     /**
-     * Generates real discussions for every non-skipped week in $weeks.
+     * Generates real discussions for every non-skipped week in $weeks - one
+     * discussion per week per group id in $groupids. Moodle's own group
+     * mode (Separate/Visible groups, set on the forum itself) decides who
+     * can actually see or reply to each one; this just makes sure each
+     * selected group gets its own copy instead of one shared discussion.
      *
      * @param int   $forumid
      * @param int   $userid The teacher generating the series - becomes the discussion author.
      * @param int   $startdate Unix timestamp for the series start date (any time-of-day; only the date part is used).
      * @param array $weeks
+     * @param int[] $groupids Group ids to generate a copy for, or [-1] (the default) for a
+     *                        single "All participants" discussion with no group restriction.
      * @return array{created: int[], skipped: int[]} Discussion IDs created, and week numbers that were skipped.
      */
-    public static function generate(int $forumid, int $userid, int $startdate, array $weeks): array {
+    public static function generate(int $forumid, int $userid, int $startdate, array $weeks, array $groupids = [-1]): array {
         global $DB;
+
+        if (empty($groupids)) {
+            $groupids = [-1];
+        }
 
         $forum = $DB->get_record('forum', ['id' => $forumid], '*', MUST_EXIST);
         get_coursemodule_from_instance('forum', $forum->id, $forum->course, false, MUST_EXIST);
@@ -139,24 +149,28 @@ class generator {
                 }
             }
 
-            $discussion = new \stdClass();
-            $discussion->course        = $forum->course;
-            $discussion->forum         = $forum->id;
-            $discussion->name          = $week['title'];
-            $discussion->message       = $week['message'];
-            $discussion->messageformat = FORMAT_HTML;
-            $discussion->messagetrust  = 1;
-            $discussion->mailnow       = 0;
-            $discussion->groupid       = -1;
-            $discussion->timestart     = $timestart;
-            $discussion->timeend       = $timeend;
-            $discussion->userid        = $userid;
+            // Same computed schedule/content for every group - just one
+            // discussion per selected group instead of one shared one.
+            foreach ($groupids as $groupid) {
+                $discussion = new \stdClass();
+                $discussion->course        = $forum->course;
+                $discussion->forum         = $forum->id;
+                $discussion->name          = $week['title'];
+                $discussion->message       = $week['message'];
+                $discussion->messageformat = FORMAT_HTML;
+                $discussion->messagetrust  = 1;
+                $discussion->mailnow       = 0;
+                $discussion->groupid       = $groupid;
+                $discussion->timestart     = $timestart;
+                $discussion->timeend       = $timeend;
+                $discussion->userid        = $userid;
 
-            $discussionid = forum_add_discussion($discussion, null, null, $userid);
+                $discussionid = forum_add_discussion($discussion, null, null, $userid);
 
-            \local_forumlock\observer::store_schedule($discussionid, $forum->id, $forum->course, $userid, $lockat, $openat);
+                \local_forumlock\observer::store_schedule($discussionid, $forum->id, $forum->course, $userid, $lockat, $openat);
 
-            $created[] = $discussionid;
+                $created[] = $discussionid;
+            }
         }
 
         rebuild_course_cache($forum->course, true);

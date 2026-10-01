@@ -30,6 +30,10 @@
     var editorIdCounter = 0;
     var tbody = null;
     var startDateInput = null;
+    var countInput = null;
+    var MAX_DISCUSSION_COUNT = 100; // Sane upper bound - well past a full year of weekly topics.
+    var ALL_PARTICIPANTS = -1; // Same sentinel Moodle itself uses for "no group restriction".
+    var selectedGroupIds = [ALL_PARTICIPANTS]; // Default: one shared discussion, same as before groups existed.
     var tinyMCEInstance = null;   // Cached once loaded, null if load failed.
     var tinyMCEState = 'idle';    // 'idle' | 'loading' | 'ready' | 'failed'
     var tinyMCEWaiters = [];      // Callbacks queued while a load is in progress.
@@ -112,11 +116,22 @@
             tinymce.init({
                 selector: '#' + id,
                 menubar: false,
-                plugins: 'lists link image media table charmap searchreplace visualblocks ' +
+                // NOTE: no "media" plugin/button here on purpose. TinyMCE's
+                // media-embed dialog writes a raw <iframe>, and generate.php
+                // sanitizes every message with PARAM_CLEANHTML before saving
+                // it - which strips <iframe> tags for security, the same as
+                // it would on the real post.php form. The embed would look
+                // fine in this editor and then silently vanish once
+                // generated. The supported way to add a video is to paste
+                // the plain URL as text/a link - Moodle's own "Multimedia
+                // plugins" filter turns a recognised video URL into a real
+                // player at display time, and that survives PARAM_CLEANHTML
+                // fine since it's just a link.
+                plugins: 'lists link image table charmap searchreplace visualblocks ' +
                     'code fullscreen insertdatetime paste wordcount advlist autolink',
                 toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
                     'forecolor backcolor | alignleft aligncenter alignright alignjustify | ' +
-                    'bullist numlist outdent indent | link image media table | ' +
+                    'bullist numlist outdent indent | link image table | ' +
                     'charmap searchreplace | removeformat | fullscreen code',
                 height: 400,
                 branding: false,
@@ -541,6 +556,8 @@
 
         initEditorForTextarea(messageInput);
 
+        syncCountDisplayFromRows();
+
         return row;
     }
 
@@ -589,6 +606,7 @@
             row.dataset.week = String(index + 1);
             row.querySelector('td').textContent = String(index + 1);
         });
+        syncCountDisplayFromRows();
     }
 
     function collectWeeks() {
@@ -616,10 +634,59 @@
         });
     }
 
+    /**
+     * Scans a list of week objects for messages that look like they link
+     * to something hosted on THIS course (a Moodle pluginfile.php URL, a
+     * relative path, or an embedded data: image) rather than a genuine
+     * external URL (YouTube, an http(s) link to another site, etc.).
+     * Those links don't survive being reused as a template in a different
+     * course, so we flag them rather than let it be a silent surprise.
+     *
+     * @return array week numbers (or 1-based positions) with a suspect link.
+     */
+    function findLocalFileWeeks(weeks) {
+        var suspects = [];
+        (weeks || []).forEach(function(week, idx) {
+            var html = week.message || '';
+            var attrs = html.match(/(?:src|href)\s*=\s*["']([^"']*)["']/gi) || [];
+            var hasLocal = attrs.some(function(attr) {
+                var m = attr.match(/["']([^"']*)["']\s*$/);
+                var url = m ? m[1] : '';
+                if (!url) {
+                    return false;
+                }
+                if (/^data:/i.test(url)) {
+                    return true;
+                }
+                if (/pluginfile\.php/i.test(url)) {
+                    return true;
+                }
+                // A genuine external embed/link is a full http(s) URL to
+                // some other host. Anything else (relative, //host-relative
+                // without a scheme, etc.) is treated as locally-hosted.
+                return !/^https?:\/\//i.test(url);
+            });
+            if (hasLocal) {
+                suspects.push(week.weeknumber || (idx + 1));
+            }
+        });
+        return suspects;
+    }
+
     function downloadTemplate() {
+        var weeks = collectWeeks();
+        var suspects = findLocalFileWeeks(weeks);
+        if (suspects.length) {
+            var warnMsg = (cfg.strings.localfilewarningdownload ||
+                'Row(s) __WEEKS__ appear to link to something hosted on this course. That link will not work ' +
+                'once this template is used in a different course - re-upload the file there and update the link.')
+                .replace('__WEEKS__', suspects.join(', '));
+            window.alert(warnMsg);
+        }
+
         var payload = {
             startdate: startDateInput.value || '',
-            weeks: collectWeeks(),
+            weeks: weeks,
         };
         var blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
         var url = URL.createObjectURL(blob);
@@ -663,7 +730,18 @@
                 if (payload.startdate) {
                     startDateInput.value = payload.startdate;
                 }
-                loadWeeks(payload.weeks || []);
+                var weeks = payload.weeks || [];
+                loadWeeks(weeks);
+
+                var suspects = findLocalFileWeeks(weeks);
+                if (suspects.length) {
+                    var warnMsg = (cfg.strings.localfilewarningupload ||
+                        'Row(s) __WEEKS__ in this template appear to link to something hosted on the course it ' +
+                        'came from. Those links won\'t work in this course - check the messages and re-upload/re-link ' +
+                        'anything like that here.')
+                        .replace('__WEEKS__', suspects.join(', '));
+                    window.alert(warnMsg);
+                }
             } catch (e) {
                 window.alert('Could not read that file - is it a template downloaded from this page?');
             }
@@ -677,6 +755,20 @@
         }
         var stripped = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim();
         return stripped.length === 0;
+    }
+
+    // Used before the count box removes a row, so we don't silently drop a
+    // title/message the user has already written.
+    function rowHasContent(row) {
+        var title = row.querySelector('.forumseries-title');
+        if (title && title.value.trim().length) {
+            return true;
+        }
+        var messageTextarea = row.querySelector('.forumseries-message');
+        if (messageTextarea && !isMessageEmpty(getMessageValue(messageTextarea))) {
+            return true;
+        }
+        return false;
     }
 
     function highlightEmptyBodies() {
@@ -722,7 +814,9 @@
             return false;
         }
 
-        var confirmMsg = cfg.strings.confirm.replace('__COUNT__', String(toGenerate.length));
+        var groupMultiplier = selectedGroupIds.length || 1;
+        var totalCount = toGenerate.length * groupMultiplier;
+        var confirmMsg = cfg.strings.confirm.replace('__COUNT__', String(totalCount));
         if (!window.confirm(confirmMsg)) {
             return false;
         }
@@ -743,6 +837,7 @@
         addField('forumid', String(cfg.forumid));
         addField('startdate', startDateInput.value);
         addField('weeksjson', JSON.stringify(weeks));
+        addField('groupidsjson', JSON.stringify(selectedGroupIds));
 
         document.body.appendChild(form);
         form.submit();
@@ -751,24 +846,234 @@
 
     function buildStartDateBlock() {
         var wrap = document.getElementById('forumseries-startdate-wrap');
+        wrap.style.display = 'flex';
+        wrap.style.flexWrap = 'wrap';
+        wrap.style.alignItems = 'flex-end';
+        wrap.style.columnGap = '1.5rem';
+
+        var startGroup = document.createElement('div');
+        startGroup.style.marginTop = '1rem';
+
         var label = document.createElement('label');
         label.setAttribute('for', 'forumseries-startdate');
         label.textContent = 'Start date (Monday of week 1)';
         label.style.display = 'inline-block';
         label.style.fontWeight = 'bold';
-        label.style.marginTop = '1rem';
 
         var labelRow = document.createElement('div');
         labelRow.appendChild(label);
         labelRow.appendChild(helpIcon(cfg.help.startdate));
-        wrap.appendChild(labelRow);
+        startGroup.appendChild(labelRow);
 
         startDateInput = document.createElement('input');
         startDateInput.type = 'date';
         startDateInput.id = 'forumseries-startdate';
         startDateInput.className = 'form-control d-inline-block w-auto';
+        startGroup.appendChild(startDateInput);
 
-        wrap.appendChild(startDateInput);
+        wrap.appendChild(startGroup);
+
+        var countGroup = document.createElement('div');
+        countGroup.style.marginTop = '1rem';
+
+        var countLabel = document.createElement('label');
+        countLabel.setAttribute('for', 'forumseries-discussioncount');
+        countLabel.textContent = cfg.strings.discussioncountlabel || 'Number of discussions';
+        countLabel.style.display = 'inline-block';
+        countLabel.style.fontWeight = 'bold';
+
+        var countLabelRow = document.createElement('div');
+        countLabelRow.appendChild(countLabel);
+        countLabelRow.appendChild(helpIcon(cfg.help.discussioncount));
+        countGroup.appendChild(countLabelRow);
+
+        countInput = document.createElement('input');
+        countInput.type = 'number';
+        countInput.id = 'forumseries-discussioncount';
+        countInput.className = 'form-control d-inline-block w-auto';
+        countInput.min = '1';
+        countInput.max = String(MAX_DISCUSSION_COUNT);
+        countInput.step = '1';
+        countInput.value = '1';
+        countInput.addEventListener('change', syncRowCountFromCountInput);
+        countGroup.appendChild(countInput);
+
+        // No "generate now" shortcut here on purpose: this box only ever
+        // resizes the table. Creating real discussions happens exclusively
+        // via the Generate / Download and generate buttons further down,
+        // so there's no control near this one that can trigger it.
+
+        wrap.appendChild(countGroup);
+
+        if (cfg.groups && cfg.groups.length) {
+            wrap.appendChild(buildGroupsGroup());
+        }
+    }
+
+    /**
+     * Builds the "Generate for" group-picker: "All participants" (one
+     * shared discussion, the default/previous behaviour) plus a checkbox
+     * per course group. Selecting any specific group deselects "All
+     * participants" and vice versa - picking a mix of "shared" and
+     * "per-group" in the same run isn't a combination that makes sense to
+     * offer. At least one option stays selected at all times.
+     */
+    function buildGroupsGroup() {
+        var groupsGroup = document.createElement('div');
+        groupsGroup.style.marginTop = '1rem';
+
+        var groupsLabel = document.createElement('label');
+        groupsLabel.textContent = cfg.strings.groupslabel || 'Generate for';
+        groupsLabel.style.display = 'inline-block';
+        groupsLabel.style.fontWeight = 'bold';
+
+        var groupsLabelRow = document.createElement('div');
+        groupsLabelRow.appendChild(groupsLabel);
+        groupsLabelRow.appendChild(helpIcon(cfg.help.groups));
+        groupsGroup.appendChild(groupsLabelRow);
+
+        var list = document.createElement('div');
+        list.style.maxHeight = '120px';
+        list.style.overflowY = 'auto';
+        list.style.border = '1px solid #ced4da';
+        list.style.borderRadius = '0.25rem';
+        list.style.padding = '0.4rem 0.6rem';
+        list.style.marginTop = '0.25rem';
+
+        var checkboxes = [];
+
+        function makeCheckbox(id, labelText, groupid, checked) {
+            var wrapDiv = document.createElement('div');
+            wrapDiv.className = 'form-check';
+
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input';
+            checkbox.id = id;
+            checkbox.checked = checked;
+            checkbox.dataset.groupid = String(groupid);
+
+            var label = document.createElement('label');
+            label.className = 'form-check-label';
+            label.setAttribute('for', id);
+            label.textContent = labelText;
+
+            wrapDiv.appendChild(checkbox);
+            wrapDiv.appendChild(label);
+            list.appendChild(wrapDiv);
+            checkboxes.push(checkbox);
+            return checkbox;
+        }
+
+        var allCheckbox = makeCheckbox('forumseries-group-all',
+            cfg.strings.groupsallparticipants || 'All participants (one shared discussion)',
+            ALL_PARTICIPANTS, true);
+
+        var groupCheckboxes = (cfg.groups || []).map(function(g) {
+            return makeCheckbox('forumseries-group-' + g.id, g.name, g.id, false);
+        });
+
+        function refreshSelection() {
+            var selected = checkboxes.filter(function(cb) {
+                return cb.checked;
+            }).map(function(cb) {
+                return parseInt(cb.dataset.groupid, 10);
+            });
+            if (!selected.length) {
+                // Never allow nothing selected - fall back to "All participants".
+                allCheckbox.checked = true;
+                selected = [ALL_PARTICIPANTS];
+            }
+            selectedGroupIds = selected;
+        }
+
+        allCheckbox.addEventListener('change', function() {
+            if (allCheckbox.checked) {
+                groupCheckboxes.forEach(function(cb) {
+                    cb.checked = false;
+                });
+            }
+            refreshSelection();
+        });
+
+        groupCheckboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                if (cb.checked) {
+                    allCheckbox.checked = false;
+                }
+                refreshSelection();
+            });
+        });
+
+        groupsGroup.appendChild(list);
+        return groupsGroup;
+    }
+
+    // Keeps the "Number of discussions" box showing the table's actual row
+    // count, after any change that adds/removes rows some other way (the
+    // add/remove/move/duplicate buttons, or loading a template).
+    function syncCountDisplayFromRows() {
+        if (!countInput || !tbody) {
+            return;
+        }
+        countInput.value = String(tbody.querySelectorAll('tr').length);
+    }
+
+    // Adds or removes rows from the bottom of the table so the row count
+    // matches whatever the user just typed/spun in the count box. Existing
+    // rows (and their content) are left alone - only the difference at the
+    // end is touched.
+    function syncRowCountFromCountInput() {
+        if (!countInput || !tbody) {
+            return;
+        }
+        var target = parseInt(countInput.value, 10);
+        if (!target || target < 1) {
+            target = 1;
+        }
+        if (target > MAX_DISCUSSION_COUNT) {
+            target = MAX_DISCUSSION_COUNT;
+        }
+
+        var rows = tbody.querySelectorAll('tr');
+        var current = rows.length;
+
+        if (target > current) {
+            for (var i = current; i < target; i++) {
+                addRow();
+            }
+        } else if (target < current) {
+            var rowsToRemove = Array.prototype.slice.call(rows, target);
+            var rowsWithContent = rowsToRemove.filter(rowHasContent);
+
+            if (rowsWithContent.length) {
+                var weekNumbers = rowsWithContent.map(function(row) {
+                    return row.dataset.week || '?';
+                });
+                var warnMsg = (cfg.strings.removecontentwarning ||
+                    'Row(s) __WEEKS__ already have a title or message written in. Reducing the ' +
+                    'count to __COUNT__ will delete those rows, and their content, from the table. Continue?')
+                    .replace('__WEEKS__', weekNumbers.join(', '))
+                    .replace('__COUNT__', String(target));
+
+                if (!window.confirm(warnMsg)) {
+                    // Bail out - put the box back to what the table actually has.
+                    countInput.value = String(current);
+                    return;
+                }
+            }
+
+            for (var j = rows.length - 1; j >= target; j--) {
+                var textarea = rows[j].querySelector('.forumseries-message');
+                if (textarea) {
+                    destroyEditorForTextarea(textarea);
+                }
+                rows[j].remove();
+            }
+            renumberRows();
+        }
+
+        countInput.value = String(target);
     }
 
     function buildApp() {
@@ -793,6 +1098,14 @@
             '</tr></thead><tbody></tbody>';
         scrollWrap.appendChild(table);
         tbody = table.querySelector('tbody');
+
+        // The message column header gets its own help icon too, right where
+        // the teacher is about to start typing - not just a banner they may
+        // have already scrolled past.
+        var messageHeader = table.querySelectorAll('th')[2];
+        if (messageHeader) {
+            messageHeader.appendChild(helpIcon(cfg.help.messagelimits));
+        }
 
         function withHelp(el, helpText) {
             var wrap = document.createElement('span');
