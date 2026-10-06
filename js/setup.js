@@ -173,27 +173,102 @@
         textarea.value = value || '';
     }
 
+    // One shared popover for every "?" icon: click an icon to show its note,
+    // click it again, click anywhere else, scroll, or press Escape to close.
+    // Replaces the old hover tooltip (title attribute), which was fiddly -
+    // it vanished as soon as the pointer drifted and never worked on touch.
+    var helpPopover = null;
+    var helpPopoverOwner = null;
+
+    function closeHelpPopover() {
+        if (helpPopover && helpPopover.parentNode) {
+            helpPopover.parentNode.removeChild(helpPopover);
+        }
+        if (helpPopoverOwner) {
+            helpPopoverOwner.setAttribute('aria-expanded', 'false');
+        }
+        helpPopover = null;
+        helpPopoverOwner = null;
+    }
+
+    function openHelpPopover(icon, text) {
+        closeHelpPopover();
+        var pop = document.createElement('div');
+        pop.setAttribute('role', 'tooltip');
+        pop.textContent = text;
+        pop.style.position = 'fixed';
+        pop.style.zIndex = '10000';
+        pop.style.maxWidth = '280px';
+        pop.style.padding = '8px 10px';
+        pop.style.background = '#343a40';
+        pop.style.color = '#fff';
+        pop.style.fontSize = '13px';
+        pop.style.lineHeight = '1.4';
+        pop.style.borderRadius = '4px';
+        pop.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        pop.style.whiteSpace = 'normal';
+        pop.style.visibility = 'hidden';
+        document.body.appendChild(pop);
+
+        var r = icon.getBoundingClientRect();
+        var pw = pop.offsetWidth;
+        var ph = pop.offsetHeight;
+        var left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), window.innerWidth - pw - 8);
+        var top = r.bottom + 6;
+        if (top + ph > window.innerHeight - 8) {
+            top = Math.max(8, r.top - ph - 6);
+        }
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+        pop.style.visibility = 'visible';
+
+        icon.setAttribute('aria-expanded', 'true');
+        helpPopover = pop;
+        helpPopoverOwner = icon;
+    }
+
+    document.addEventListener('click', function(e) {
+        if (helpPopover && e.target !== helpPopoverOwner && !helpPopover.contains(e.target)) {
+            closeHelpPopover();
+        }
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { closeHelpPopover(); }
+    });
+    window.addEventListener('scroll', closeHelpPopover, true);
+    window.addEventListener('resize', closeHelpPopover);
+
     function helpIcon(text) {
-        var icon = document.createElement('span');
+        var icon = document.createElement('button');
+        icon.type = 'button';
         icon.textContent = '?';
-        icon.title = text;
-        icon.setAttribute('tabindex', '0');
-        icon.setAttribute('role', 'img');
-        icon.setAttribute('aria-label', text);
+        icon.setAttribute('aria-label', 'Help');
+        icon.setAttribute('aria-expanded', 'false');
         icon.style.display = 'inline-flex';
         icon.style.alignItems = 'center';
         icon.style.justifyContent = 'center';
         icon.style.width = '15px';
         icon.style.height = '15px';
+        icon.style.padding = '0';
+        icon.style.border = '0';
         icon.style.borderRadius = '50%';
         icon.style.background = '#6c757d';
         icon.style.color = '#fff';
         icon.style.fontSize = '10px';
         icon.style.fontWeight = 'bold';
         icon.style.marginLeft = '5px';
-        icon.style.cursor = 'help';
+        icon.style.cursor = 'pointer';
         icon.style.verticalAlign = 'middle';
         icon.style.flexShrink = '0';
+        icon.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (helpPopoverOwner === icon) {
+                closeHelpPopover();
+            } else {
+                openHelpPopover(icon, text);
+            }
+        });
         return icon;
     }
 

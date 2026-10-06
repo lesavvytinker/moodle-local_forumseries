@@ -25,10 +25,10 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_forumseries';
-$plugin->version   = 2026092908;
+$plugin->version   = 2026100600;
 $plugin->requires  = 2024100700;      // Moodle 4.5+. CONFIRM against your exact Moodle 5.x build number.
 $plugin->maturity  = MATURITY_ALPHA;  // Brand new - test thoroughly before relying on it.
-$plugin->release   = '0.4.0';         // Added group support: a "Generate for" picker creates one copy of the series per selected group instead of one shared discussion.
+$plugin->release   = '0.4.2';         // Help "?" icons now open a click-to-show note instead of a hover tooltip.
 
 // Depends on local_forumlock's schedule/lock mechanics - this plugin only
 // creates the discussions and hands scheduling off to it.

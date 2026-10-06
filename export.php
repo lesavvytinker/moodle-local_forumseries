@@ -62,7 +62,7 @@ function local_forumseries_export_format(int $timestamp, \DateTimeZone $tz): str
 }
 
 $weeks = [];
-$weeknumber = 1;
+$seensignatures = [];
 
 foreach ($discussions as $discussion) {
     $firstpost = $DB->get_record('forum_posts', ['id' => $discussion->firstpost]);
@@ -109,8 +109,29 @@ foreach ($discussions as $discussion) {
         }
     }
 
+    // Group-generation creates several real discussions that share the
+    // same title/message/schedule (one per selected group) - collapse
+    // those back down to a single template row so re-uploading the
+    // export doesn't multiply them again on the next generate. Two
+    // genuinely distinct weeks that happen to share an identical title,
+    // message and schedule would also collapse here, but that's an
+    // edge case this heuristic accepts in exchange for not needing any
+    // extra stored "which week is this" metadata.
+    $signature = implode('|', [
+        trim((string) $discussion->name),
+        trim((string) $firstpost->message),
+        (string) $openatexact,
+        (string) $lockatexact,
+        (string) $displaystartexact,
+        (string) $displayendexact,
+    ]);
+    if (isset($seensignatures[$signature])) {
+        continue;
+    }
+    $seensignatures[$signature] = true;
+
     $weeks[] = [
-        'weeknumber'         => $weeknumber++,
+        'weeknumber'         => count($weeks) + 1,
         'title'              => $discussion->name,
         'message'            => $firstpost->message,
         // Only force exact-dates mode when there's actually a real
