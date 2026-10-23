@@ -16,7 +16,6 @@
 
 namespace local_forumseries\privacy;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * This plugin stores no data of its own - it creates real forum
@@ -28,6 +27,11 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements \core_privacy\local\metadata\null_provider {
+    /**
+     * Explains why this plugin stores no personal data.
+     *
+     * @return string
+     */
     public static function get_reason(): string {
         return 'privacy:metadata:null_provider_reason';
     }

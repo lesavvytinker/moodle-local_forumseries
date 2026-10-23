@@ -40,7 +40,7 @@ require_login($course, false, $cm);
 $context = context_module::instance($cm->id);
 require_capability('local/forumseries:manage', $context);
 
-// -1 ("All participants", no group restriction) is always allowed; any
+// The value -1 ("All participants", no group restriction) is always allowed; any
 // other id must genuinely belong to this course - never trust the posted
 // ids directly, since they're just JSON from the client.
 $validgroupids = [-1];

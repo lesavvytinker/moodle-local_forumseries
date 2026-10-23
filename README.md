@@ -11,6 +11,8 @@ plugin's only job is to create real discussions and hand each one to
 
 ## How it works
 
+Front-end code is loaded as AMD modules (`amd/src/`, built into `amd/build/`) by a hook callback (`db/hooks.php` -> `classes/hook_callbacks.php`) and by `setup.php`'s `js_call_amd()`; there is no inline script injection.
+
 1. **`setup.php`** (linked as "Plan a discussion series" next to the search
    box on the forum page) shows an editable table: one row per week, with
    title, a rich-text message (TinyMCE where available, plain text
@@ -109,7 +111,7 @@ plugin's only job is to create real discussions and hand each one to
   (e.g. a scheduling error), discussions 1-7 already exist and there's no
   automatic rollback or clear "which ones succeeded" report back to the
   teacher - only the final count.
-- No automated tests yet.
+- PHPUnit tests for the generator live in `tests/generator_test.php` (date resolution, override/skip weeks, exact dates, display period, one discussion per group). Run them with `vendor/bin/phpunit --testsuite local_forumseries_testsuite` (or `--filter generator_test`) in a Moodle development checkout - they haven't been run on a live PHPUnit setup yet.
 - This is genuinely new/untested code - unlike local_forumlock, none of
   this has been exercised against a live Moodle site yet. Test thoroughly
   with a throwaway test forum before using it for real course content.

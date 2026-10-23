@@ -73,7 +73,6 @@ require_once($GLOBALS['CFG']->dirroot . '/mod/forum/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class generator {
-
     /**
      * Generates real discussions for every non-skipped week in $weeks - one
      * discussion per week per group id in $groupids. Moodle's own group
@@ -141,11 +140,21 @@ class generator {
             $timeend = 0;
             if (!empty($week['displayenabled'])) {
                 if ($exact) {
-                    $timestart = !empty($week['displaystart_exact']) ? self::resolve_exact((string) $week['displaystart_exact'], $tz) : 0;
-                    $timeend = !empty($week['displayend_exact']) ? self::resolve_exact((string) $week['displayend_exact'], $tz) : 0;
+                    $timestart = !empty($week['displaystart_exact'])
+                        ? self::resolve_exact((string) $week['displaystart_exact'], $tz) : 0;
+                    $timeend = !empty($week['displayend_exact'])
+                        ? self::resolve_exact((string) $week['displayend_exact'], $tz) : 0;
                 } else {
-                    $timestart = self::resolve_datetime($weekstart, (int) ($week['displaystartday'] ?? 1), (string) ($week['displaystarttime'] ?? '09:00'));
-                    $timeend = self::resolve_datetime($weekstart, (int) ($week['displayendday'] ?? 5), (string) ($week['displayendtime'] ?? '17:00'));
+                    $timestart = self::resolve_datetime(
+                        $weekstart,
+                        (int) ($week['displaystartday'] ?? 1),
+                        (string) ($week['displaystarttime'] ?? '09:00')
+                    );
+                    $timeend = self::resolve_datetime(
+                        $weekstart,
+                        (int) ($week['displayendday'] ?? 5),
+                        (string) ($week['displayendtime'] ?? '17:00')
+                    );
                 }
             }
 
@@ -190,7 +199,12 @@ class generator {
      * @param \DateTimeZone $tz
      * @return \DateTime
      */
-    private static function resolve_week_start(\DateTime $seriesstart, int $weeknumber, ?string $overridedate, \DateTimeZone $tz): \DateTime {
+    private static function resolve_week_start(
+        \DateTime $seriesstart,
+        int $weeknumber,
+        ?string $overridedate,
+        \DateTimeZone $tz
+    ): \DateTime {
         if (!empty($overridedate)) {
             $dt = new \DateTime($overridedate, $tz);
             $dt->setTime(0, 0, 0);

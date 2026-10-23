@@ -25,10 +25,10 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_forumseries';
-$plugin->version   = 2026100600;
+$plugin->version   = 2026100602;
 $plugin->requires  = 2024100700;      // Moodle 4.5+. CONFIRM against your exact Moodle 5.x build number.
 $plugin->maturity  = MATURITY_ALPHA;  // Brand new - test thoroughly before relying on it.
-$plugin->release   = '0.4.2';         // Help "?" icons now open a click-to-show note instead of a hover tooltip.
+$plugin->release   = '0.5.0';         // AMD modules + hooks API, PHPUnit tests for the generator.
 
 // Depends on local_forumlock's schedule/lock mechanics - this plugin only
 // creates the discussions and hands scheduling off to it.

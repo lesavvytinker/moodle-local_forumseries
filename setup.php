@@ -54,15 +54,12 @@ if ($groupmode != NOGROUPS) {
     }
 }
 
-$jsfile = __DIR__ . '/js/setup.js';
-$js = is_readable($jsfile) ? file_get_contents($jsfile) : '';
-
 $weekdaystrings = [];
 for ($i = 1; $i <= 7; $i++) {
     $weekdaystrings[$i] = get_string('weekday_' . $i, 'local_forumseries');
 }
 
-$bootstrap = 'window.localForumseries = ' . json_encode([
+$config = [
     'forumid'    => (int) $forum->id,
     'cmid'       => (int) $cm->id,
     'sesskey'    => sesskey(),
@@ -136,7 +133,7 @@ $bootstrap = 'window.localForumseries = ' . json_encode([
         'generate'       => get_string('help_generate', 'local_forumseries'),
         'downloadandgenerate' => get_string('help_downloadandgenerate', 'local_forumseries'),
     ],
-]) . ';';
+];
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('setuppagetitle', 'local_forumseries'));
@@ -150,7 +147,6 @@ echo $OUTPUT->notification(get_string('richtextlimitsnotice', 'local_forumseries
 echo html_writer::tag('div', '', ['id' => 'forumseries-startdate-wrap']);
 echo html_writer::tag('div', '', ['id' => 'forumseries-app']);
 
-echo html_writer::tag('script', $bootstrap);
-echo html_writer::tag('script', $js);
+$PAGE->requires->js_call_amd('local_forumseries/setup', 'init', [$config]);
 
 echo $OUTPUT->footer();

@@ -52,7 +52,10 @@ $discussions = $DB->get_records('forum_discussions', ['forum' => $forumid], 'id 
 $tz = core_date::get_user_timezone_object();
 
 /**
+ * Formats a timestamp for the JSON template.
+ *
  * @param int $timestamp
+ * @param \DateTimeZone $tz
  * @return string 'YYYY-MM-DDTHH:MM' in the acting user's timezone.
  */
 function local_forumseries_export_format(int $timestamp, \DateTimeZone $tz): string {
