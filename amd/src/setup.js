@@ -71,8 +71,8 @@ function loadTinyMCE(callback) {
     tinyMCEWaiters.push(callback);
 
     /**
-     *
-     * @param result
+     * Helper.
+     * @param {*} result The result.
      */
     function resolveAll(result) {
         tinyMCEState = result ? 'ready' : 'failed';
@@ -122,8 +122,6 @@ function initEditorForTextarea(textarea) {
     editorIdCounter++;
     let id = 'forumseries-message-' + editorIdCounter;
     textarea.id = id;
-
-    console.log('local_forumseries: requesting editor for ' + id);
 
     loadTinyMCE(function(tinymce) {
         if (!tinymce) {
@@ -428,10 +426,13 @@ function addRow(data, insertAfter) {
     lockFieldsWrap.innerHTML =
         '<span class="small">' + cfg.strings.durationlabel + '</span> ' +
         '<input type="number" min="0" class="form-control forumseries-lockdurationvalue d-inline-block" ' +
-        'style="width:4.5rem" value="' + (data.lockdurationvalue != null ? data.lockdurationvalue : 7) + '"> ' +
+        'style="width:4.5rem" value="' +
+        (data.lockdurationvalue !== null && data.lockdurationvalue !== undefined ? data.lockdurationvalue : 7) + '"> ' +
         '<select class="form-control forumseries-lockdurationunit d-inline-block w-auto">' +
-        '<option value="days"' + (data.lockdurationunit === 'weeks' ? '' : ' selected') + '>' + cfg.strings.durationunitdays + '</option>' +
-        '<option value="weeks"' + (data.lockdurationunit === 'weeks' ? ' selected' : '') + '>' + cfg.strings.durationunitweeks + '</option>' +
+        '<option value="days"' + (data.lockdurationunit === 'weeks' ? '' : ' selected') + '>' +
+        cfg.strings.durationunitdays + '</option>' +
+        '<option value="weeks"' + (data.lockdurationunit === 'weeks' ? ' selected' : '') + '>' +
+        cfg.strings.durationunitweeks + '</option>' +
         '</select><br>' +
         '<span class="small">' + cfg.strings.locktimelabel + '</span> ' +
         '<input type="time" class="form-control forumseries-locktime d-inline-block w-auto" value="' +
@@ -865,9 +866,9 @@ function downloadExistingDiscussions() {
     form.action = cfg.exporturl;
 
     /**
-     *
-     * @param name
-     * @param value
+     * Helper.
+     * @param {*} name The name.
+     * @param {*} value The value.
      */
     function addField(name, value) {
         let input = document.createElement('input');
@@ -1029,9 +1030,9 @@ function submitGenerate(weeks) {
     form.action = cfg.generateurl;
 
     /**
-     *
-     * @param name
-     * @param value
+     * Helper.
+     * @param {*} name The name.
+     * @param {*} value The value.
      */
     function addField(name, value) {
         let input = document.createElement('input');
@@ -1264,8 +1265,8 @@ function renderPreview(rows, totalCount, onConfirm) {
         }
     }
     /**
-     *
-     * @param e
+     * Helper.
+     * @param {*} e The e.
      */
     function onKeydown(e) {
         if (e.key === 'Escape') {
@@ -1408,11 +1409,11 @@ function buildGroupsGroup() {
     let checkboxes = [];
 
     /**
-     *
-     * @param id
-     * @param labelText
-     * @param groupid
-     * @param checked
+     * Helper.
+     * @param {*} id The id.
+     * @param {*} labelText The labelText.
+     * @param {*} groupid The groupid.
+     * @param {*} checked The checked.
      */
     function makeCheckbox(id, labelText, groupid, checked) {
         let wrapDiv = document.createElement('div');
@@ -1593,9 +1594,9 @@ function buildApp() {
     }
 
     /**
-     *
-     * @param el
-     * @param helpText
+     * Helper.
+     * @param {*} el The el.
+     * @param {*} helpText The helpText.
      */
     function withHelp(el, helpText) {
         let wrap = document.createElement('span');
