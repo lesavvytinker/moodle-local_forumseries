@@ -31,9 +31,9 @@
 
 let cfg = null;
 
-let DEFAULT_OPEN_DAY = 1;   // Monday
+let DEFAULT_OPEN_DAY = 1; // Monday
 let DEFAULT_OPEN_TIME = '09:00';
-let DEFAULT_LOCK_DAY = 5;   // Friday
+let DEFAULT_LOCK_DAY = 5; // Friday
 let DEFAULT_LOCK_TIME = '17:00';
 
 let weekCounter = 0;
@@ -44,9 +44,9 @@ let countInput = null;
 let MAX_DISCUSSION_COUNT = 100; // Sane upper bound - well past a full year of weekly topics.
 let ALL_PARTICIPANTS = -1; // Same sentinel Moodle itself uses for "no group restriction".
 let selectedGroupIds = [ALL_PARTICIPANTS]; // Default: one shared discussion, same as before groups existed.
-let tinyMCEInstance = null;   // Cached once loaded, null if load failed.
-let tinyMCEState = 'idle';    // 'idle' | 'loading' | 'ready' | 'failed'
-let tinyMCEWaiters = [];      // Callbacks queued while a load is in progress.
+let tinyMCEInstance = null; // Cached once loaded, null if load failed.
+let tinyMCEState = 'idle'; // 'idle' | 'loading' | 'ready' | 'failed'
+let tinyMCEWaiters = []; // Callbacks queued while a load is in progress.
 
 /**
  * Load tiny m c e.
@@ -265,7 +265,9 @@ document.addEventListener('click', function(e) {
     }
 });
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeHelpPopover(); }
+    if (e.key === 'Escape') {
+ closeHelpPopover();
+}
 });
 window.addEventListener('scroll', closeHelpPopover, true);
 window.addEventListener('resize', closeHelpPopover);
@@ -329,6 +331,7 @@ function weekdayOptionsHtml(selected) {
  * @param {*} data The data.
  * @param {*} insertAfter The insert after.
  */
+// eslint-disable-next-line complexity
 function addRow(data, insertAfter) {
     weekCounter++;
     data = data || {};
@@ -506,7 +509,6 @@ function addRow(data, insertAfter) {
         refreshOpenLockDisplay();
     });
     opensCell.appendChild(noRestrictionsBtn);
-
 
 
     // --- Override / skip controls ---
@@ -712,12 +714,12 @@ function collectRowData(row) {
         refday: parseInt(row.querySelector('.forumseries-refday').value, 10),
         reftime: row.querySelector('.forumseries-reftime').value,
         openenabled: row.querySelector('.forumseries-open-enable').checked,
-        openat_exact: row.querySelector('.forumseries-exact-openat').value || null,
+        'openat_exact': row.querySelector('.forumseries-exact-openat').value || null,
         lockenabled: row.querySelector('.forumseries-lock-enable').checked,
         lockdurationvalue: parseInt(row.querySelector('.forumseries-lockdurationvalue').value, 10) || 0,
         lockdurationunit: row.querySelector('.forumseries-lockdurationunit').value,
         locktime: row.querySelector('.forumseries-locktime').value,
-        lockat_exact: row.querySelector('.forumseries-exact-lockat').value || null,
+        'lockat_exact': row.querySelector('.forumseries-exact-lockat').value || null,
         skip: row.querySelector('.forumseries-skip').checked,
         overridedate: (overrideEnabled && overrideDate) ? overrideDate : null,
         displayenabled: displayEnabled,
@@ -725,8 +727,8 @@ function collectRowData(row) {
         displaystarttime: row.querySelector('.forumseries-displaystarttime').value,
         displayendday: parseInt(row.querySelector('.forumseries-displayendday').value, 10),
         displayendtime: row.querySelector('.forumseries-displayendtime').value,
-        displaystart_exact: row.querySelector('.forumseries-exact-displaystart').value || null,
-        displayend_exact: row.querySelector('.forumseries-exact-displayend').value || null,
+        'displaystart_exact': row.querySelector('.forumseries-exact-displaystart').value || null,
+        'displayend_exact': row.querySelector('.forumseries-exact-displayend').value || null,
     };
 }
 
@@ -985,7 +987,9 @@ function highlightEmptyBodies() {
  */
 function validateAndSubmit() {
     let weeks = collectWeeks();
-    let toGenerate = weeks.filter(function(w) { return !w.skip; });
+    let toGenerate = weeks.filter(function(w) {
+ return !w.skip;
+});
 
     if (!startDateInput.value) {
         // eslint-disable-next-line no-alert
@@ -997,7 +1001,9 @@ function validateAndSubmit() {
         window.alert('Add at least one non-skipped week first.');
         return false;
     }
-    let badRow = toGenerate.find(function(w) { return w.openenabled && !w.lockenabled; });
+    let badRow = toGenerate.find(function(w) {
+ return w.openenabled && !w.lockenabled;
+});
     if (badRow) {
         // eslint-disable-next-line no-alert
         window.alert(cfg.strings.openwithoutlockerror);
