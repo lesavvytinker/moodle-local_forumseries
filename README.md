@@ -48,7 +48,7 @@ Front-end code is loaded as AMD modules (`amd/src/`, built into `amd/build/`) by
    date), so the same file works for any future intake.
 3. **Upload template** reads a previously-downloaded JSON file back into
    the table, ready for a new start date.
-4. **Generate discussions** posts the whole plan to `generate.php`, which
+4. **Generate discussions** first opens a **preview** dialog (from `preview.php`) listing every week's resolved dates and any warnings; nothing is created until you confirm there. It then posts the whole plan to `generate.php`, which
    calls `classes/generator.php` to resolve each week's offsets against
    the chosen start date, create the discussion via Moodle's own
    `forum_add_discussion()`, and hand scheduling off to local_forumlock.
@@ -101,12 +101,6 @@ Front-end code is loaded as AMD modules (`amd/src/`, built into `amd/build/`) by
   quietly to a plain textarea (check the browser console for a warning
   starting "local_forumseries:") rather than break the page - but this
   genuinely hasn't been tested live yet.
-- **No dry-run/preview step yet.** Generation is one-shot and creates real
-  discussions immediately - there's no "preview the computed dates before
-  committing" step. Worth adding before real classroom use: show the
-  resolved absolute date/time for every week (computed from the start
-  date, including override rows) in a confirmation step before the actual
-  POST.
 - **No partial-failure handling.** If discussion 8 of 13 fails to create
   (e.g. a scheduling error), discussions 1-7 already exist and there's no
   automatic rollback or clear "which ones succeeded" report back to the

@@ -112,51 +112,11 @@ class generator {
                 continue;
             }
 
-            $exact = !empty($week['exactdates']);
-            $weekstart = self::resolve_week_start($seriesstart, (int) $week['weeknumber'], $week['overridedate'] ?? null, $tz);
-
-            if ($exact) {
-                $openat = (!empty($week['openenabled']) && !empty($week['openat_exact']))
-                    ? self::resolve_exact((string) $week['openat_exact'], $tz) : 0;
-                $lockat = (!empty($week['lockenabled']) && !empty($week['lockat_exact']))
-                    ? self::resolve_exact((string) $week['lockat_exact'], $tz) : 0;
-            } else {
-                $refat = self::resolve_datetime($weekstart, (int) $week['refday'], (string) $week['reftime']);
-                $openat = !empty($week['openenabled']) ? $refat : 0;
-                $lockat = 0;
-                if (!empty($week['lockenabled'])) {
-                    $unit = (($week['lockdurationunit'] ?? 'days') === 'weeks') ? 7 : 1;
-                    $durationdays = max(0, (int) ($week['lockdurationvalue'] ?? 0)) * $unit;
-                    $lockat = self::add_days_and_set_time($refat, $durationdays, (string) $week['locktime'], $tz);
-                }
-            }
-
-            // An open-gate only means anything alongside an eventual lock.
-            if ($openat > 0 && $lockat === 0) {
-                $openat = 0;
-            }
-
-            $timestart = 0;
-            $timeend = 0;
-            if (!empty($week['displayenabled'])) {
-                if ($exact) {
-                    $timestart = !empty($week['displaystart_exact'])
-                        ? self::resolve_exact((string) $week['displaystart_exact'], $tz) : 0;
-                    $timeend = !empty($week['displayend_exact'])
-                        ? self::resolve_exact((string) $week['displayend_exact'], $tz) : 0;
-                } else {
-                    $timestart = self::resolve_datetime(
-                        $weekstart,
-                        (int) ($week['displaystartday'] ?? 1),
-                        (string) ($week['displaystarttime'] ?? '09:00')
-                    );
-                    $timeend = self::resolve_datetime(
-                        $weekstart,
-                        (int) ($week['displayendday'] ?? 5),
-                        (string) ($week['displayendtime'] ?? '17:00')
-                    );
-                }
-            }
+            $schedule = self::compute_schedule($week, $seriesstart, $tz);
+            $openat = $schedule['openat'];
+            $lockat = $schedule['lockat'];
+            $timestart = $schedule['timestart'];
+            $timeend = $schedule['timeend'];
 
             // Same computed schedule/content for every group - just one
             // discussion per selected group instead of one shared one.
@@ -185,6 +145,179 @@ class generator {
         rebuild_course_cache($forum->course, true);
 
         return ['created' => $created, 'skipped' => $skipped];
+    }
+
+    /**
+     * Works out the open-gate, lock and display-period timestamps for one
+     * week. This is the single source of truth for date maths: generate()
+     * creates discussions from it and preview() shows it to the teacher
+     * first, so what they see is always what they get.
+     *
+     * @param array $week One (cleaned) week row.
+     * @param \DateTime $seriesstart Midnight of the series start date, in $tz.
+     * @param \DateTimeZone $tz
+     * @return array{openat: int, lockat: int, timestart: int, timeend: int} Timestamps, 0 = not set.
+     */
+    public static function compute_schedule(array $week, \DateTime $seriesstart, \DateTimeZone $tz): array {
+        $exact = !empty($week['exactdates']);
+        $weekstart = self::resolve_week_start($seriesstart, (int) $week['weeknumber'], $week['overridedate'] ?? null, $tz);
+
+        if ($exact) {
+            $openat = (!empty($week['openenabled']) && !empty($week['openat_exact']))
+                ? self::resolve_exact((string) $week['openat_exact'], $tz) : 0;
+            $lockat = (!empty($week['lockenabled']) && !empty($week['lockat_exact']))
+                ? self::resolve_exact((string) $week['lockat_exact'], $tz) : 0;
+        } else {
+            $refat = self::resolve_datetime($weekstart, (int) $week['refday'], (string) $week['reftime']);
+            $openat = !empty($week['openenabled']) ? $refat : 0;
+            $lockat = 0;
+            if (!empty($week['lockenabled'])) {
+                $unit = (($week['lockdurationunit'] ?? 'days') === 'weeks') ? 7 : 1;
+                $durationdays = max(0, (int) ($week['lockdurationvalue'] ?? 0)) * $unit;
+                $lockat = self::add_days_and_set_time($refat, $durationdays, (string) $week['locktime'], $tz);
+            }
+        }
+
+        // An open-gate only means anything alongside an eventual lock.
+        if ($openat > 0 && $lockat === 0) {
+            $openat = 0;
+        }
+
+        $timestart = 0;
+        $timeend = 0;
+        if (!empty($week['displayenabled'])) {
+            if ($exact) {
+                $timestart = !empty($week['displaystart_exact'])
+                    ? self::resolve_exact((string) $week['displaystart_exact'], $tz) : 0;
+                $timeend = !empty($week['displayend_exact'])
+                    ? self::resolve_exact((string) $week['displayend_exact'], $tz) : 0;
+            } else {
+                $timestart = self::resolve_datetime(
+                    $weekstart,
+                    (int) ($week['displaystartday'] ?? 1),
+                    (string) ($week['displaystarttime'] ?? '09:00')
+                );
+                $timeend = self::resolve_datetime(
+                    $weekstart,
+                    (int) ($week['displayendday'] ?? 5),
+                    (string) ($week['displayendtime'] ?? '17:00')
+                );
+            }
+        }
+
+        return ['openat' => $openat, 'lockat' => $lockat, 'timestart' => $timestart, 'timeend' => $timeend];
+    }
+
+    /**
+     * Shows what generate() would create, without creating anything: one
+     * entry per week, with each resolved date formatted in the viewing
+     * user's timezone and a list of warnings for anything that wouldn't
+     * behave the way the teacher probably expects.
+     *
+     * @param int $startdate Unix timestamp for the series start date.
+     * @param array $weeks Cleaned week rows (see clean_weeks()).
+     * @return array[] One entry per week: weeknumber, title, skipped, open, lock, displaystart,
+     *                 displayend (formatted strings, '' when not set) and warnings (string keys).
+     */
+    public static function preview(int $startdate, array $weeks): array {
+        $tz = \core_date::get_user_timezone_object();
+        $seriesstart = new \DateTime('@' . $startdate);
+        $seriesstart->setTimezone($tz);
+        $seriesstart->setTime(0, 0, 0);
+
+        $format = get_string('strftimedaydatetime', 'langconfig');
+        $fmt = function (int $timestamp) use ($format): string {
+            return $timestamp > 0 ? userdate($timestamp, $format) : '';
+        };
+
+        $now = time();
+        $rows = [];
+        foreach ($weeks as $week) {
+            $row = [
+                'weeknumber'   => (int) ($week['weeknumber'] ?? 0),
+                'title'        => (string) ($week['title'] ?? ''),
+                'skipped'      => !empty($week['skip']),
+                'open'         => '',
+                'lock'         => '',
+                'displaystart' => '',
+                'displayend'   => '',
+                'warnings'     => [],
+            ];
+
+            if (!$row['skipped']) {
+                $schedule = self::compute_schedule($week, $seriesstart, $tz);
+
+                // What the teacher asked for, before compute_schedule() drops anything.
+                $wantedlock = !empty($week['lockenabled']);
+
+                $row['open'] = $fmt($schedule['openat']);
+                $row['lock'] = $fmt($schedule['lockat']);
+                $row['displaystart'] = $fmt($schedule['timestart']);
+                $row['displayend'] = $fmt($schedule['timeend']);
+
+                if ($wantedlock && $schedule['lockat'] > 0 && $schedule['lockat'] <= $now) {
+                    // The lock scheduler ignores a lock time that has already passed.
+                    $row['warnings'][] = 'previewwarnlockpast';
+                }
+                if ($schedule['openat'] > 0 && $schedule['lockat'] > 0 && $schedule['openat'] >= $schedule['lockat']) {
+                    $row['warnings'][] = 'previewwarnopenafterlock';
+                }
+                if ($schedule['timestart'] > 0 && $schedule['timeend'] > 0 && $schedule['timeend'] <= $schedule['timestart']) {
+                    $row['warnings'][] = 'previewwarndisplayorder';
+                }
+            }
+
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Sanitises the weeks plan that arrives from the browser as raw JSON
+     * (PARAM_RAW) - every field is cleaned or coerced explicitly rather
+     * than trusting the decoded structure.
+     *
+     * @param array $weeks Decoded JSON.
+     * @return array Cleaned week rows, safe to pass to generate()/preview().
+     */
+    public static function clean_weeks(array $weeks): array {
+        $clean = [];
+        foreach ($weeks as $week) {
+            $overridedate = clean_param($week['overridedate'] ?? '', PARAM_TEXT);
+            $row = [
+                'weeknumber'         => (int) ($week['weeknumber'] ?? 0),
+                'title'              => clean_param($week['title'] ?? '', PARAM_TEXT),
+                'message'            => clean_param($week['message'] ?? '', PARAM_CLEANHTML),
+                'exactdates'         => !empty($week['exactdates']),
+                'refday'             => max(1, min(7, (int) ($week['refday'] ?? 1))),
+                'reftime'            => clean_param($week['reftime'] ?? '09:00', PARAM_TEXT),
+                'openenabled'        => !empty($week['openenabled']),
+                'openat_exact'       => clean_param($week['openat_exact'] ?? '', PARAM_TEXT) ?: null,
+                'lockenabled'        => !empty($week['lockenabled']),
+                'lockdurationvalue'  => max(0, (int) ($week['lockdurationvalue'] ?? 7)),
+                'lockdurationunit'   => (($week['lockdurationunit'] ?? 'days') === 'weeks') ? 'weeks' : 'days',
+                'locktime'           => clean_param($week['locktime'] ?? '17:00', PARAM_TEXT),
+                'lockat_exact'       => clean_param($week['lockat_exact'] ?? '', PARAM_TEXT) ?: null,
+                'skip'               => !empty($week['skip']),
+                'overridedate'       => $overridedate !== '' ? $overridedate : null,
+                'displayenabled'     => !empty($week['displayenabled']),
+                'displaystartday'    => max(1, min(7, (int) ($week['displaystartday'] ?? 1))),
+                'displaystarttime'   => clean_param($week['displaystarttime'] ?? '09:00', PARAM_TEXT),
+                'displayendday'      => max(1, min(7, (int) ($week['displayendday'] ?? 5))),
+                'displayendtime'     => clean_param($week['displayendtime'] ?? '17:00', PARAM_TEXT),
+                'displaystart_exact' => clean_param($week['displaystart_exact'] ?? '', PARAM_TEXT) ?: null,
+                'displayend_exact'   => clean_param($week['displayend_exact'] ?? '', PARAM_TEXT) ?: null,
+            ];
+            // Defensive: an open-gate without an eventual lock isn't meaningful in
+            // local_forumlock's model - the client already blocks this combination,
+            // this just guards against it being bypassed.
+            if ($row['openenabled'] && !$row['lockenabled']) {
+                $row['openenabled'] = false;
+            }
+            $clean[] = $row;
+        }
+        return $clean;
     }
 
     /**

@@ -68,41 +68,7 @@ if (!is_array($weeks) || empty($weeks)) {
 
 // Sanitise each week's fields explicitly rather than trusting the decoded
 // JSON directly - it rode in as PARAM_RAW.
-$clean = [];
-foreach ($weeks as $week) {
-    $overridedate = clean_param($week['overridedate'] ?? '', PARAM_TEXT);
-    $row = [
-        'weeknumber'         => (int) ($week['weeknumber'] ?? 0),
-        'title'              => clean_param($week['title'] ?? '', PARAM_TEXT),
-        'message'            => clean_param($week['message'] ?? '', PARAM_CLEANHTML),
-        'exactdates'         => !empty($week['exactdates']),
-        'refday'             => max(1, min(7, (int) ($week['refday'] ?? 1))),
-        'reftime'            => clean_param($week['reftime'] ?? '09:00', PARAM_TEXT),
-        'openenabled'        => !empty($week['openenabled']),
-        'openat_exact'       => clean_param($week['openat_exact'] ?? '', PARAM_TEXT) ?: null,
-        'lockenabled'        => !empty($week['lockenabled']),
-        'lockdurationvalue'  => max(0, (int) ($week['lockdurationvalue'] ?? 7)),
-        'lockdurationunit'   => (($week['lockdurationunit'] ?? 'days') === 'weeks') ? 'weeks' : 'days',
-        'locktime'           => clean_param($week['locktime'] ?? '17:00', PARAM_TEXT),
-        'lockat_exact'       => clean_param($week['lockat_exact'] ?? '', PARAM_TEXT) ?: null,
-        'skip'               => !empty($week['skip']),
-        'overridedate'       => $overridedate !== '' ? $overridedate : null,
-        'displayenabled'     => !empty($week['displayenabled']),
-        'displaystartday'    => max(1, min(7, (int) ($week['displaystartday'] ?? 1))),
-        'displaystarttime'   => clean_param($week['displaystarttime'] ?? '09:00', PARAM_TEXT),
-        'displayendday'      => max(1, min(7, (int) ($week['displayendday'] ?? 5))),
-        'displayendtime'     => clean_param($week['displayendtime'] ?? '17:00', PARAM_TEXT),
-        'displaystart_exact' => clean_param($week['displaystart_exact'] ?? '', PARAM_TEXT) ?: null,
-        'displayend_exact'   => clean_param($week['displayend_exact'] ?? '', PARAM_TEXT) ?: null,
-    ];
-    // Defensive: an open-gate without an eventual lock isn't meaningful in
-    // local_forumlock's model - the client already blocks this combination,
-    // this just guards against it being bypassed.
-    if ($row['openenabled'] && !$row['lockenabled']) {
-        $row['openenabled'] = false;
-    }
-    $clean[] = $row;
-}
+$clean = \local_forumseries\generator::clean_weeks($weeks);
 
 $tz = core_date::get_user_timezone_object();
 $startdt = new DateTime($startdatestr, $tz);

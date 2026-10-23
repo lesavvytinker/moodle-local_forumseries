@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 (2026-10-06)
+- Preview step before generating: a dialog shows every week's resolved open,
+  lock and display dates in your timezone, flags weeks that won't behave as
+  expected (lock already in the past, open not before lock, display period
+  ending before it starts), and only creates discussions once confirmed. The
+  dates come from the generator's own date logic, so the preview matches what
+  generation does.
+- Generator refactor: `compute_schedule()`, `preview()` and `clean_weeks()`.
+
 ## 0.5.0 (2026-10-06)
 - Front-end moved to AMD modules loaded through Moodle's hooks API
   (`local_forumseries/setup`, `local_forumseries/forumpage`); no more inline
