@@ -48,6 +48,11 @@ let tinyMCEInstance = null;   // Cached once loaded, null if load failed.
 let tinyMCEState = 'idle';    // 'idle' | 'loading' | 'ready' | 'failed'
 let tinyMCEWaiters = [];      // Callbacks queued while a load is in progress.
 
+/**
+ * Load tiny m c e.
+ *
+ * @param {*} callback The callback.
+ */
 function loadTinyMCE(callback) {
     if (tinyMCEState === 'ready') {
         callback(tinyMCEInstance);
@@ -65,6 +70,10 @@ function loadTinyMCE(callback) {
     tinyMCEState = 'loading';
     tinyMCEWaiters.push(callback);
 
+    /**
+     *
+     * @param result
+     */
     function resolveAll(result) {
         tinyMCEState = result ? 'ready' : 'failed';
         tinyMCEInstance = result;
@@ -89,6 +98,7 @@ function loadTinyMCE(callback) {
             }
             Loader.getTinyMCE().then(function(tinymce) {
                 resolveAll(tinymce);
+                return null;
             }).catch(function(err) {
                 window.console.warn('local_forumseries: could not load TinyMCE, using plain text boxes.', err);
                 resolveAll(null);
@@ -103,6 +113,11 @@ function loadTinyMCE(callback) {
     }
 }
 
+/**
+ * Init editor for textarea.
+ *
+ * @param {*} textarea The textarea.
+ */
 function initEditorForTextarea(textarea) {
     editorIdCounter++;
     let id = 'forumseries-message-' + editorIdCounter;
@@ -146,13 +161,19 @@ function initEditorForTextarea(textarea) {
             height: 400,
             branding: false,
         }).then(function() {
-            console.log('local_forumseries: editor ready for ' + id);
+            window.console.log('local_forumseries: editor ready for ' + id);
+            return null;
         }).catch(function(err) {
             window.console.warn('local_forumseries: tinymce.init() failed for ' + id, err);
         });
     });
 }
 
+/**
+ * Destroy editor for textarea.
+ *
+ * @param {*} textarea The textarea.
+ */
 function destroyEditorForTextarea(textarea) {
     if (tinyMCEInstance && textarea.id) {
         let instance = tinyMCEInstance.get(textarea.id);
@@ -162,6 +183,11 @@ function destroyEditorForTextarea(textarea) {
     }
 }
 
+/**
+ * Get message value.
+ *
+ * @param {*} textarea The textarea.
+ */
 function getMessageValue(textarea) {
     if (tinyMCEInstance && textarea.id) {
         let instance = tinyMCEInstance.get(textarea.id);
@@ -179,6 +205,9 @@ function getMessageValue(textarea) {
 let helpPopover = null;
 let helpPopoverOwner = null;
 
+/**
+ * Close help popover.
+ */
 function closeHelpPopover() {
     if (helpPopover && helpPopover.parentNode) {
         helpPopover.parentNode.removeChild(helpPopover);
@@ -190,6 +219,12 @@ function closeHelpPopover() {
     helpPopoverOwner = null;
 }
 
+/**
+ * Open help popover.
+ *
+ * @param {*} icon The icon.
+ * @param {*} text The text.
+ */
 function openHelpPopover(icon, text) {
     closeHelpPopover();
     let pop = document.createElement('div');
@@ -237,6 +272,11 @@ document.addEventListener('keydown', function(e) {
 window.addEventListener('scroll', closeHelpPopover, true);
 window.addEventListener('resize', closeHelpPopover);
 
+/**
+ * Help icon.
+ *
+ * @param {*} text The text.
+ */
 function helpIcon(text) {
     let icon = document.createElement('button');
     icon.type = 'button';
@@ -271,6 +311,11 @@ function helpIcon(text) {
     return icon;
 }
 
+/**
+ * Weekday options html.
+ *
+ * @param {*} selected The selected.
+ */
 function weekdayOptionsHtml(selected) {
     let out = '';
     for (let i = 1; i <= 7; i++) {
@@ -280,6 +325,12 @@ function weekdayOptionsHtml(selected) {
     return out;
 }
 
+/**
+ * Add row.
+ *
+ * @param {*} data The data.
+ * @param {*} insertAfter The insert after.
+ */
 function addRow(data, insertAfter) {
     weekCounter++;
     data = data || {};
@@ -425,6 +476,9 @@ function addRow(data, insertAfter) {
     exactDatesWrap.appendChild(helpIcon(cfg.help.exactdates));
     opensCell.appendChild(exactDatesWrap);
 
+    /**
+     *
+     */
     function refreshOpenLockDisplay() {
         let exact = exactDatesCheckbox.checked;
         refLabelWrap.style.display = exact ? 'none' : '';
@@ -555,6 +609,9 @@ function addRow(data, insertAfter) {
         (data.displayend_exact || '') + '">';
     optionsCell.appendChild(exactDisplayFieldsWrap);
 
+    /**
+     *
+     */
     function refreshDisplayFields() {
         let exact = exactDatesCheckbox.checked;
         let enabled = displayCheckbox.checked;
@@ -635,6 +692,11 @@ function addRow(data, insertAfter) {
     return row;
 }
 
+/**
+ * Collect row data.
+ *
+ * @param {*} row The row.
+ */
 function collectRowData(row) {
     let messageTextarea = row.querySelector('.forumseries-message');
     let overrideEnabled = row.querySelector('.forumseries-override-enable').checked;
@@ -667,12 +729,20 @@ function collectRowData(row) {
     };
 }
 
+/**
+ * Duplicate row.
+ *
+ * @param {*} sourceRow The source row.
+ */
 function duplicateRow(sourceRow) {
     let data = collectRowData(sourceRow);
     addRow(data, sourceRow);
     renumberRows();
 }
 
+/**
+ * Renumber rows.
+ */
 function renumberRows() {
     let rows = tbody.querySelectorAll('tr');
     weekCounter = rows.length;
@@ -683,6 +753,9 @@ function renumberRows() {
     syncCountDisplayFromRows();
 }
 
+/**
+ * Collect weeks.
+ */
 function collectWeeks() {
     let rows = tbody.querySelectorAll('tr');
     let weeks = [];
@@ -694,6 +767,11 @@ function collectWeeks() {
     return weeks;
 }
 
+/**
+ * Load weeks.
+ *
+ * @param {*} weeks The weeks.
+ */
 function loadWeeks(weeks) {
     tbody.querySelectorAll('tr').forEach(function(row) {
         let textarea = row.querySelector('.forumseries-message');
@@ -716,6 +794,7 @@ function loadWeeks(weeks) {
  * Those links don't survive being reused as a template in a different
  * course, so we flag them rather than let it be a silent surprise.
  *
+ * @param {*} weeks The weeks.
  * @return array week numbers (or 1-based positions) with a suspect link.
  */
 function findLocalFileWeeks(weeks) {
@@ -747,6 +826,9 @@ function findLocalFileWeeks(weeks) {
     return suspects;
 }
 
+/**
+ * Download template.
+ */
 function downloadTemplate() {
     let weeks = collectWeeks();
     let suspects = findLocalFileWeeks(weeks);
@@ -755,6 +837,7 @@ function downloadTemplate() {
             'Row(s) __WEEKS__ appear to link to something hosted on this course. That link will not work ' +
             'once this template is used in a different course - re-upload the file there and update the link.')
             .replace('__WEEKS__', suspects.join(', '));
+        // eslint-disable-next-line no-alert
         window.alert(warnMsg);
     }
 
@@ -773,11 +856,19 @@ function downloadTemplate() {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * Download existing discussions.
+ */
 function downloadExistingDiscussions() {
     let form = document.createElement('form');
     form.method = 'POST';
     form.action = cfg.exporturl;
 
+    /**
+     *
+     * @param name
+     * @param value
+     */
     function addField(name, value) {
         let input = document.createElement('input');
         input.type = 'hidden';
@@ -796,8 +887,16 @@ function downloadExistingDiscussions() {
     }, 2000);
 }
 
+/**
+ * Handle upload.
+ *
+ * @param {*} file The file.
+ */
 function handleUpload(file) {
     let reader = new FileReader();
+    /**
+     *
+     */
     reader.onload = function() {
         try {
             let payload = JSON.parse(reader.result);
@@ -814,15 +913,22 @@ function handleUpload(file) {
                     'came from. Those links won\'t work in this course - check the messages and re-upload/re-link ' +
                     'anything like that here.')
                     .replace('__WEEKS__', suspects.join(', '));
+                // eslint-disable-next-line no-alert
                 window.alert(warnMsg);
             }
         } catch {
+            // eslint-disable-next-line no-alert
             window.alert('Could not read that file - is it a template downloaded from this page?');
         }
     };
     reader.readAsText(file);
 }
 
+/**
+ * Is message empty.
+ *
+ * @param {*} html The html.
+ */
 function isMessageEmpty(html) {
     if (!html) {
         return true;
@@ -833,6 +939,11 @@ function isMessageEmpty(html) {
 
 // Used before the count box removes a row, so we don't silently drop a
 // title/message the user has already written.
+/**
+ * Row has content.
+ *
+ * @param {*} row The row.
+ */
 function rowHasContent(row) {
     let title = row.querySelector('.forumseries-title');
     if (title && title.value.trim().length) {
@@ -845,6 +956,9 @@ function rowHasContent(row) {
     return false;
 }
 
+/**
+ * Highlight empty bodies.
+ */
 function highlightEmptyBodies() {
     let emptyWeekNumbers = [];
     let rows = tbody.querySelectorAll('tr');
@@ -865,40 +979,60 @@ function highlightEmptyBodies() {
     return emptyWeekNumbers;
 }
 
+/**
+ * Validate and submit.
+ */
 function validateAndSubmit() {
     let weeks = collectWeeks();
     let toGenerate = weeks.filter(function(w) { return !w.skip; });
 
     if (!startDateInput.value) {
+        // eslint-disable-next-line no-alert
         window.alert('Please set a start date first.');
         return false;
     }
     if (!toGenerate.length) {
+        // eslint-disable-next-line no-alert
         window.alert('Add at least one non-skipped week first.');
         return false;
     }
     let badRow = toGenerate.find(function(w) { return w.openenabled && !w.lockenabled; });
     if (badRow) {
+        // eslint-disable-next-line no-alert
         window.alert(cfg.strings.openwithoutlockerror);
         return false;
     }
     let emptyWeekNumbers = highlightEmptyBodies();
     if (emptyWeekNumbers.length) {
+        // eslint-disable-next-line no-alert
         window.alert(cfg.strings.emptybodyerror.replace('__WEEKS__', emptyWeekNumbers.join(', ')));
         return false;
     }
 
     let groupMultiplier = selectedGroupIds.length || 1;
     let totalCount = toGenerate.length * groupMultiplier;
-    let confirmMsg = cfg.strings.confirm.replace('__COUNT__', String(totalCount));
-    if (!window.confirm(confirmMsg)) {
-        return false;
-    }
 
+    showPreview(weeks, totalCount, function() {
+        submitGenerate(weeks);
+    });
+    return true;
+}
+
+/**
+ * Submit generate.
+ *
+ * @param {*} weeks The weeks.
+ */
+function submitGenerate(weeks) {
     let form = document.createElement('form');
     form.method = 'POST';
     form.action = cfg.generateurl;
 
+    /**
+     *
+     * @param name
+     * @param value
+     */
     function addField(name, value) {
         let input = document.createElement('input');
         input.type = 'hidden';
@@ -915,9 +1049,266 @@ function validateAndSubmit() {
 
     document.body.appendChild(form);
     form.submit();
-    return true;
 }
 
+// Asks the server what each week would resolve to (using the generator's
+// own date maths, so the preview can't drift from what generation does) and
+// shows it in a dialog before anything is created. If the preview can't be
+// loaded for any reason, falls back to the plain confirm() so generating is
+// never blocked by a preview problem.
+/**
+ * Show preview.
+ *
+ * @param {*} weeks The weeks.
+ * @param {*} totalCount The total count.
+ * @param {*} onConfirm The on confirm.
+ */
+function showPreview(weeks, totalCount, onConfirm) {
+    /**
+     *
+     */
+    let fallback = function() {
+        // eslint-disable-next-line no-alert
+        if (window.confirm(cfg.strings.confirm.replace('__COUNT__', String(totalCount)))) {
+            onConfirm();
+        }
+    };
+
+    let body = new URLSearchParams();
+    body.append('sesskey', cfg.sesskey);
+    body.append('forumid', String(cfg.forumid));
+    body.append('startdate', startDateInput.value);
+    body.append('weeksjson', JSON.stringify(weeks));
+
+    fetch(cfg.previewurl, {method: 'POST', body: body, credentials: 'same-origin'})
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('preview failed');
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (!data || !Array.isArray(data.rows)) {
+                throw new Error('preview malformed');
+            }
+            renderPreview(data.rows, totalCount, onConfirm);
+            return null;
+        })
+        .catch(function() {
+            fallback();
+        });
+}
+
+/**
+ * Preview cell.
+ *
+ * @param {*} text The text.
+ * @param {*} muted The muted.
+ */
+function previewCell(text, muted) {
+    let td = document.createElement('td');
+    td.textContent = text;
+    if (muted) {
+        td.style.color = '#6c757d';
+    }
+    return td;
+}
+
+/**
+ * Render preview.
+ *
+ * @param {*} rows The rows.
+ * @param {*} totalCount The total count.
+ * @param {*} onConfirm The on confirm.
+ */
+function renderPreview(rows, totalCount, onConfirm) {
+    let strings = cfg.strings;
+    let previouslyFocused = document.activeElement;
+
+    let overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.zIndex = '10001';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '1rem';
+
+    let dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'forumseries-preview-title');
+    dialog.tabIndex = -1;
+    dialog.style.background = 'var(--bs-body-bg, #fff)';
+    dialog.style.color = 'var(--bs-body-color, #212529)';
+    dialog.style.borderRadius = '6px';
+    dialog.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.35)';
+    dialog.style.width = '100%';
+    dialog.style.maxWidth = '1000px';
+    dialog.style.maxHeight = '90vh';
+    dialog.style.display = 'flex';
+    dialog.style.flexDirection = 'column';
+
+    let header = document.createElement('div');
+    header.style.padding = '1rem 1.25rem 0.5rem';
+    let title = document.createElement('h4');
+    title.id = 'forumseries-preview-title';
+    title.textContent = strings.previewtitle;
+    title.style.margin = '0 0 0.5rem';
+    header.appendChild(title);
+    let intro = document.createElement('p');
+    intro.textContent = strings.previewintro;
+    intro.style.margin = '0';
+    header.appendChild(intro);
+    if (selectedGroupIds.length > 1 || selectedGroupIds[0] !== ALL_PARTICIPANTS) {
+        let groupsNote = document.createElement('p');
+        groupsNote.textContent = strings.previewgroupsnote
+            .replace('__GROUPS__', String(selectedGroupIds.length))
+            .replace('__TOTAL__', String(totalCount));
+        groupsNote.style.margin = '0.5rem 0 0';
+        groupsNote.style.fontWeight = 'bold';
+        header.appendChild(groupsNote);
+    }
+    dialog.appendChild(header);
+
+    let scroll = document.createElement('div');
+    scroll.style.overflow = 'auto';
+    scroll.style.padding = '0.5rem 1.25rem';
+    scroll.style.flex = '1 1 auto';
+
+    let table = document.createElement('table');
+    table.className = 'table table-sm';
+    let headRow = document.createElement('tr');
+    [strings.previewcolweek, strings.previewcoltitle, strings.previewcolopens,
+        strings.previewcollocks, strings.previewcoldisplay, strings.previewcolnotes].forEach(function(label) {
+        let th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = label;
+        headRow.appendChild(th);
+    });
+    let thead = document.createElement('thead');
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    let tbodyEl = document.createElement('tbody');
+    let notSet = strings.previewnotset;
+    rows.forEach(function(row) {
+        let tr = document.createElement('tr');
+        tr.appendChild(previewCell(String(row.weeknumber), row.skipped));
+        tr.appendChild(previewCell(row.title, row.skipped));
+
+        if (row.skipped) {
+            let skippedCell = previewCell(strings.previewskipped, true);
+            skippedCell.colSpan = 4;
+            skippedCell.style.fontStyle = 'italic';
+            tr.appendChild(skippedCell);
+            tbodyEl.appendChild(tr);
+            return;
+        }
+
+        tr.appendChild(previewCell(row.open || notSet, !row.open));
+        tr.appendChild(previewCell(row.lock || notSet, !row.lock));
+
+        let display = notSet;
+        if (row.displaystart && row.displayend) {
+            display = row.displaystart + ' \u2013 ' + row.displayend;
+        } else if (row.displaystart) {
+            display = strings.previewfrom.replace('__DATE__', row.displaystart);
+        } else if (row.displayend) {
+            display = strings.previewuntil.replace('__DATE__', row.displayend);
+        }
+        tr.appendChild(previewCell(display, display === notSet));
+
+        let notes = document.createElement('td');
+        (row.warnings || []).forEach(function(key) {
+            let note = document.createElement('div');
+            note.textContent = '\u26A0 ' + ((strings.previewwarnings || {})[key] || key);
+            note.style.color = '#b02a37';
+            notes.appendChild(note);
+        });
+        tr.appendChild(notes);
+        tbodyEl.appendChild(tr);
+    });
+    table.appendChild(tbodyEl);
+    scroll.appendChild(table);
+    dialog.appendChild(scroll);
+
+    let addsOnly = document.createElement('p');
+    addsOnly.textContent = strings.previewaddsonly;
+    addsOnly.style.margin = '0';
+    addsOnly.style.padding = '0.5rem 1.25rem 0';
+    addsOnly.style.fontSize = '0.875rem';
+    addsOnly.style.color = '#6c757d';
+    dialog.appendChild(addsOnly);
+
+    let footer = document.createElement('div');
+    footer.style.padding = '0.75rem 1.25rem 1rem';
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.gap = '0.5rem';
+
+    /**
+     *
+     */
+    function close() {
+        document.removeEventListener('keydown', onKeydown, true);
+        if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+        }
+        if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+            previouslyFocused.focus();
+        }
+    }
+    /**
+     *
+     * @param e
+     */
+    function onKeydown(e) {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            close();
+        }
+    }
+
+    let cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = strings.previewcancel;
+    cancelBtn.addEventListener('click', close);
+
+    let confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'btn btn-primary';
+    confirmBtn.textContent = strings.previewgenerate.replace('__COUNT__', String(totalCount));
+    confirmBtn.addEventListener('click', function() {
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        onConfirm();
+    });
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(confirmBtn);
+    dialog.appendChild(footer);
+
+    overlay.appendChild(dialog);
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            close();
+        }
+    });
+    document.addEventListener('keydown', onKeydown, true);
+    document.body.appendChild(overlay);
+    // Start on "Go back", not the destructive-ish action, so a stray Enter doesn't create anything.
+    cancelBtn.focus();
+}
+
+/**
+ * Build start date block.
+ */
 function buildStartDateBlock() {
     let wrap = document.getElementById('forumseries-startdate-wrap');
     wrap.style.display = 'flex';
@@ -1016,6 +1407,13 @@ function buildGroupsGroup() {
 
     let checkboxes = [];
 
+    /**
+     *
+     * @param id
+     * @param labelText
+     * @param groupid
+     * @param checked
+     */
     function makeCheckbox(id, labelText, groupid, checked) {
         let wrapDiv = document.createElement('div');
         wrapDiv.className = 'form-check';
@@ -1047,6 +1445,9 @@ function buildGroupsGroup() {
         return makeCheckbox('forumseries-group-' + g.id, g.name, g.id, false);
     });
 
+    /**
+     *
+     */
     function refreshSelection() {
         let selected = checkboxes.filter(function(cb) {
             return cb.checked;
@@ -1086,6 +1487,9 @@ function buildGroupsGroup() {
 // Keeps the "Number of discussions" box showing the table's actual row
 // count, after any change that adds/removes rows some other way (the
 // add/remove/move/duplicate buttons, or loading a template).
+/**
+ * Sync count display from rows.
+ */
 function syncCountDisplayFromRows() {
     if (!countInput || !tbody) {
         return;
@@ -1097,6 +1501,9 @@ function syncCountDisplayFromRows() {
 // matches whatever the user just typed/spun in the count box. Existing
 // rows (and their content) are left alone - only the difference at the
 // end is touched.
+/**
+ * Sync row count from count input.
+ */
 function syncRowCountFromCountInput() {
     if (!countInput || !tbody) {
         return;
@@ -1130,6 +1537,7 @@ function syncRowCountFromCountInput() {
                 .replace('__WEEKS__', weekNumbers.join(', '))
                 .replace('__COUNT__', String(target));
 
+            // eslint-disable-next-line no-alert
             if (!window.confirm(warnMsg)) {
                 // Bail out - put the box back to what the table actually has.
                 countInput.value = String(current);
@@ -1150,6 +1558,9 @@ function syncRowCountFromCountInput() {
     countInput.value = String(target);
 }
 
+/**
+ * Build app.
+ */
 function buildApp() {
     let app = document.getElementById('forumseries-app');
 
@@ -1181,6 +1592,11 @@ function buildApp() {
         messageHeader.appendChild(helpIcon(cfg.help.messagelimits));
     }
 
+    /**
+     *
+     * @param el
+     * @param helpText
+     */
     function withHelp(el, helpText) {
         let wrap = document.createElement('span');
         wrap.style.display = 'inline-flex';
@@ -1255,6 +1671,9 @@ function buildApp() {
     addRow();
 }
 
+/**
+ * Start.
+ */
 function start() {
     buildStartDateBlock();
     buildApp();

@@ -122,6 +122,9 @@ final class generator_test extends \advanced_testcase {
         return $DB->get_record('local_forumlock_schedule', ['discussionid' => $discussionid]);
     }
 
+    /**
+     * Creates one discussion per week with title and message.
+     */
     public function test_creates_one_discussion_per_week_with_title_and_message(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -141,6 +144,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertSame('<p>One</p>', $post->message);
     }
 
+    /**
+     * Skipped weeks create nothing and are reported.
+     */
     public function test_skipped_weeks_create_nothing_and_are_reported(): void {
         $fixture = $this->create_fixture();
 
@@ -154,6 +160,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertSame([2, 3], $result['skipped']);
     }
 
+    /**
+     * Relative schedule resolves open and lock times.
+     */
     public function test_relative_schedule_resolves_open_and_lock_times(): void {
         $fixture = $this->create_fixture();
 
@@ -179,6 +188,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertSame('pending_open', $schedule->status);
     }
 
+    /**
+     * Lock only week has no open gate.
+     */
     public function test_lock_only_week_has_no_open_gate(): void {
         $fixture = $this->create_fixture();
 
@@ -200,6 +212,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertSame('pending_lock', $schedule->status);
     }
 
+    /**
+     * Open gate is dropped when there is no lock.
+     */
     public function test_open_gate_is_dropped_when_there_is_no_lock(): void {
         $fixture = $this->create_fixture();
 
@@ -211,6 +226,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertFalse($this->schedule($result['created'][0]));
     }
 
+    /**
+     * Override date replaces the computed week start.
+     */
     public function test_override_date_replaces_the_computed_week_start(): void {
         $fixture = $this->create_fixture();
 
@@ -231,6 +249,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertEquals($this->ts('2099-03-03 17:00'), $schedule->lockat);
     }
 
+    /**
+     * Exact dates mode uses literal datetimes.
+     */
     public function test_exact_dates_mode_uses_literal_datetimes(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -257,6 +278,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertEquals($this->ts('2099-02-09 20:00'), $discussion->timeend);
     }
 
+    /**
+     * Relative display period is resolved within the week.
+     */
     public function test_relative_display_period_is_resolved_within_the_week(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -277,6 +301,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertEquals($this->ts('2099-01-09 17:00'), $discussion->timeend);
     }
 
+    /**
+     * Default is a single all participants discussion.
+     */
     public function test_default_is_a_single_all_participants_discussion(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -288,6 +315,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertEquals(-1, $discussion->groupid);
     }
 
+    /**
+     * Empty group list falls back to all participants.
+     */
     public function test_empty_group_list_falls_back_to_all_participants(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -299,6 +329,9 @@ final class generator_test extends \advanced_testcase {
         $this->assertEquals(-1, $discussion->groupid);
     }
 
+    /**
+     * One discussion is created per week per group.
+     */
     public function test_one_discussion_is_created_per_week_per_group(): void {
         global $DB;
         $fixture = $this->create_fixture();
@@ -332,5 +365,124 @@ final class generator_test extends \advanced_testcase {
         $this->assertEqualsCanonicalizing([(int) $group1->id, (int) $group2->id], array_keys($bygroup));
         $this->assertSame(['Week 1', 'Week 2'], $bygroup[(int) $group1->id]);
         $this->assertSame(['Week 1', 'Week 2'], $bygroup[(int) $group2->id]);
+    }
+
+    /**
+     * Preview resolves dates without creating anything.
+     */
+    public function test_preview_resolves_dates_without_creating_anything(): void {
+        global $DB;
+        $fixture = $this->create_fixture();
+
+        $rows = generator::preview($this->ts('2099-01-05 12:00'), [
+            $this->week([
+                'weeknumber' => 2,
+                'refday' => 3,
+                'openenabled' => true,
+                'lockenabled' => true,
+                'lockdurationvalue' => 1,
+                'lockdurationunit' => 'weeks',
+            ]),
+        ]);
+
+        $format = get_string('strftimedaydatetime', 'langconfig');
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, $rows[0]['weeknumber']);
+        $this->assertSame(userdate($this->ts('2099-01-14 09:00'), $format), $rows[0]['open']);
+        $this->assertSame(userdate($this->ts('2099-01-21 17:00'), $format), $rows[0]['lock']);
+        $this->assertSame([], $rows[0]['warnings']);
+        $this->assertSame(0, $DB->count_records('forum_discussions', ['forum' => $fixture->forum->id]));
+    }
+
+    /**
+     * Preview matches what generate creates.
+     */
+    public function test_preview_matches_what_generate_creates(): void {
+        $fixture = $this->create_fixture();
+        $week = $this->week([
+            'refday' => 2,
+            'lockenabled' => true,
+            'lockdurationvalue' => 2,
+            'lockdurationunit' => 'days',
+            'locktime' => '15:45',
+        ]);
+
+        $rows = generator::preview($this->ts('2099-01-05 12:00'), [$week]);
+        $result = $this->generate($fixture, [$week]);
+
+        $schedule = $this->schedule($result['created'][0]);
+        $format = get_string('strftimedaydatetime', 'langconfig');
+        $this->assertSame(userdate($schedule->lockat, $format), $rows[0]['lock']);
+    }
+
+    /**
+     * Preview reports skipped weeks and blanks for unset dates.
+     */
+    public function test_preview_reports_skipped_weeks_and_blanks_for_unset_dates(): void {
+        $this->create_fixture();
+
+        $rows = generator::preview($this->ts('2099-01-05 12:00'), [
+            $this->week(['weeknumber' => 1]),
+            $this->week(['weeknumber' => 2, 'skip' => true]),
+        ]);
+
+        $this->assertFalse($rows[0]['skipped']);
+        $this->assertSame('', $rows[0]['lock']);
+        $this->assertTrue($rows[1]['skipped']);
+        $this->assertSame('', $rows[1]['open']);
+    }
+
+    /**
+     * Preview warns when the lock time has already passed.
+     */
+    public function test_preview_warns_when_the_lock_time_has_already_passed(): void {
+        $this->create_fixture();
+
+        // A series that started in 2000 locks long before now.
+        $rows = generator::preview($this->ts('2000-01-03 12:00'), [
+            $this->week(['lockenabled' => true, 'lockdurationvalue' => 1, 'lockdurationunit' => 'days']),
+        ]);
+
+        $this->assertContains('previewwarnlockpast', $rows[0]['warnings']);
+    }
+
+    /**
+     * Preview warns when display period ends before it starts.
+     */
+    public function test_preview_warns_when_display_period_ends_before_it_starts(): void {
+        $this->create_fixture();
+
+        $rows = generator::preview($this->ts('2099-01-05 12:00'), [
+            $this->week([
+                'displayenabled' => true,
+                'displaystartday' => 5,
+                'displayendday' => 1,
+            ]),
+        ]);
+
+        $this->assertContains('previewwarndisplayorder', $rows[0]['warnings']);
+    }
+
+    /**
+     * Clean weeks coerces values and drops an open gate without a lock.
+     */
+    public function test_clean_weeks_coerces_values_and_drops_an_open_gate_without_a_lock(): void {
+        $cleaned = generator::clean_weeks([
+            [
+                'weeknumber' => '3',
+                'title' => 'A title',
+                'message' => '<p>Hi</p>',
+                'openenabled' => 1,
+                'lockenabled' => 0,
+                'refday' => 99,
+                'lockdurationunit' => 'fortnights',
+            ],
+        ]);
+
+        $this->assertSame(3, $cleaned[0]['weeknumber']);
+        $this->assertFalse($cleaned[0]['openenabled']);
+        $this->assertSame(7, $cleaned[0]['refday']);
+        $this->assertSame('days', $cleaned[0]['lockdurationunit']);
+        $this->assertNull($cleaned[0]['overridedate']);
     }
 }
