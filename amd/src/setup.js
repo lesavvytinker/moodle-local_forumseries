@@ -27,6 +27,10 @@
  * which isn't needed for plain descriptive text here. If this AMD module
  * isn't available on your Moodle version, it fails quietly to a plain
  * textarea - verify this against your actual Moodle 5.x build.
+ *
+ * @module     local_forumseries/setup
+ * @copyright  2026 Harvey / Equip English
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 let cfg = null;

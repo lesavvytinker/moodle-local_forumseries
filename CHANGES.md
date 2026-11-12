@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.1 (2026-11-12)
+- Added the standard Moodle licence/copyright markers to the AMD source file setup.js.
+
 ## 0.6.0 (2026-10-06)
 - Preview step before generating: a dialog shows every week's resolved open,
   lock and display dates in your timezone, flags weeks that won't behave as
